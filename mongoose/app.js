@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const app = express();
 const { Schema } = mongoose;
+const fs = require("fs");
 
 app.set("view engine", "ejs");
 
@@ -15,25 +16,151 @@ mongoose
     console.log(e);
   });
 
-const studentSchema = new Schema({
-  name: String,
-  age: Number,
-  major: String,
-  scholarship: {
-    merit: Number,
-    other: Number,
-  },
+const studentSchema = new Schema(
+  {
+    name: { type: String, required: true, maxlength: 25 },
+    age: { type: Number, min: [0, "年龄不能小于0"] },
+    major: {
+      type: String,
+      required: function () {
+        return this.scholarship.merit >= 3000;
+      },
+      enum: [
+        "Chemistry",
+        "Computer Science",
+        "Mathematices",
+        "Civil Engineering",
+        "undecided",
+      ],
+    },
+    scholarship: {
+      merit: { type: Number, default: 0 },
+      other: { type: Number, default: 0 },
+    },
+  }
+  // {
+  //   statics: {
+  //     findAllMajorStudents(major) {
+  //       return this.find({ major: major }).exec();
+  //     },
+  //   },
+  // }
+);
+
+// studentSchema.statics.findAllMajorStudents = function (major) {
+//   return this.find({ major: major }).exec();
+// };
+
+studentSchema.static("findAllMajorStudents", function (major) {
+  return this.find({ major: major }).exec();
 });
+
+studentSchema.methods.printTotalScholarship = function () {
+  return this.scholarship.merit + this.scholarship.other;
+};
+
+studentSchema.pre("save", () => {
+  fs.writeFile("record.txt", "A new data will be saved...", (e) => {
+    if (e) throw e;
+  });
+});
+
+// const studentSchema = new Schema(
+//   {
+//     name: { type: String, required: true, maxlength: 25 },
+//     age: { type: Number, min: [0, "年龄不能小于0"] },
+//     major: {
+//       type: String,
+//       required: function () {
+//         return this.scholarship.merit >= 3000;
+//       },
+//       enum: [
+//         "Chemistry",
+//         "Computer Science",
+//         "Mathematices",
+//         "Civil Engineering",
+//         "undecided",
+//       ],
+//     },
+//     scholarship: {
+//       merit: { type: Number, default: 0 },
+//       other: { type: Number, default: 0 },
+//     },
+//   },
+//   {
+//     methods: {
+//       printTotalScholarship() {
+//         return this.scholarship.merit + this.scholarship.other;
+//       },
+//     },
+//   }
+// );
 
 const Student = mongoose.model("Student", studentSchema); //students
 
-Student.find({ "scholarship.merit": { $gte: 5000 } })
+let newStudent = new Student({
+  name: "小明",
+  age: 30,
+  major: "Computer Science",
+  scholarship: {
+    merit: 5000,
+    other: 1000,
+  },
+});
+
+newStudent
+  .save()
   .then((data) => {
-    console.log(data);
+    console.log("资料已经储存");
   })
   .catch((e) => {
     console.log(e);
   });
+
+// Student.findAllMajorStudents("Mathematics")
+//   .then((data) => {
+//     console.log(data);
+//   })
+//   .catch((e) => {
+//     console.log(e);
+//   });
+
+// Student.find({})
+//   .exec()
+//   .then((arr) => {
+//     arr.forEach((student) => {
+//       console.log(
+//         student.name + "的总奖学金金额是" + student.printTotalScholarship()
+//       );
+//     });
+//   });
+
+// let newStudent = new Student({
+//   name: "Max",
+//   age: 27,
+//   major: "Civil Engineering",
+//   scholarship: {
+//     merit: 1500,
+//     other: 2000,
+//   },
+// });
+
+// newStudent
+//   .save()
+//   .then((data) => {
+//     console.log("资料储存成功");
+//   })
+//   .catch((e) => {
+//     console.log(e);
+//   });
+
+// Student.find({ "scholarship.merit": { $gte: 5000 } })
+//   .then((data) => {
+//     console.log(data);
+//   })
+//   .catch((e) => {
+//     console.log(e);
+//   });
 
 // Student.findOneAndUpdate(
 //   { name: "Jerry" },
